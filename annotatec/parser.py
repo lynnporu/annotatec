@@ -172,7 +172,7 @@ class StructDeclaration(Declaration):
 
         self.members = {
             name: type_name
-            for name, type_name in member_units
+            for type_name, name in member_units
         }
 
     def compile(self):
