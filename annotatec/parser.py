@@ -26,6 +26,7 @@ class Declaration:
     def __init__(self, namespace: DeclarationsNamespace, name: str):
         self.namespace = namespace
         self.name = name
+        namespace[name] = self
 
 
 class FunctionDeclaration(Declaration):
@@ -279,10 +280,9 @@ class FileParser:
                     f"Unknown unit type {unit_name} in "
                     f"declaration {declaration_type}")
 
-        declaration = declaration_type(
-            name=declaration_name, **singular_units, **plural_units)
-
-        self.declarations[declaration.name] = declaration
+        declaration_type(
+            namespace=self.declarations, name=declaration_name,
+            **singular_units, **plural_units)
 
     def parse_line_units(self, line: str) -> UnitsType:
 
