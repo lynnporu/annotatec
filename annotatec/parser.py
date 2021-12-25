@@ -1,4 +1,6 @@
 import re
+import abc
+import ctypes
 import typing
 import operator
 from collections import defaultdict
@@ -14,19 +16,95 @@ UnitValues = tuple
 UnitValuesList = typing.List[UnitValues]
 
 
-class DeclarationsNamespace(dict):
+BASE_C_TYPES = {
+    "void": None,
+
+    "uint8": ctypes.c_uint8,
+    "uint16": ctypes.c_uint16,
+    "uint32": ctypes.c_uint32,
+    "uint64": ctypes.c_uint64,
+    "int8": ctypes.c_int8,
+    "int16": ctypes.c_int16,
+    "int32": ctypes.c_int32,
+    "int64": ctypes.c_int64,
+
+    "bool": ctypes.c_bool,
+    "char": ctypes.c_char,
+    "wchar": ctypes.c_wchar,
+    "uchar": ctypes.c_ubyte,
+    "short": ctypes.c_short,
+    "ushort": ctypes.c_ushort,
+    "int": ctypes.c_int,
+    "uint": ctypes.c_uint,
+    "long": ctypes.c_long,
+    "ulong": ctypes.c_ulong,
+    "longlong": ctypes.c_longlong,
+    "ulonglong": ctypes.c_ulonglong,
+
+    "string": ctypes.POINTER(ctypes.c_char),
+
+    "size": ctypes.c_size_t,
+    "ssize": ctypes.c_ssize_t,
+
+    "double": ctypes.c_double,
+    "long_double": ctypes.c_longdouble,
+    "float": ctypes.c_float
+}
+
+
+class NamespaceError(Exception):
     pass
 
 
-class Declaration:
+_ARRAY_TYPE_RE = re.compile(r"(\w+)\[(\d+)\]")
+
+
+class DeclarationsNamespace(dict):
+
+    def __init__(self, lib: ctypes.CDLL, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.lib = lib
+
+    def compile(self, name: str):
+
+        if name[-1] == "*":
+            return ctypes.POINTER(self.compile(name[:-1]))
+
+        if "[" in name and "]" in name:
+            type_name, amount = _ARRAY_TYPE_RE.match(name).groups()
+
+        if name in BASE_C_TYPES:
+            return BASE_C_TYPES[name]
+
+        if name not in self:
+            raise NamespaceError(
+                "Trying to get `{name}` object, but there's no objects with "
+                "such name in the namespace")
+        else:
+            return self[name].compile()
+
+    def compile_all(self):
+        for name in self.keys():
+            self.compile(name)
+
+
+class Declaration(metaclass=abc.ABCMeta):
     type_name: str = "declaration"
     singular_units: list = []
     plural_units: list = []
 
     def __init__(self, namespace: DeclarationsNamespace, name: str):
+
         self.namespace = namespace
         self.name = name
         namespace[name] = self
+
+        self.compiled = False
+        self.compilation_result = None
+
+    @abc.abstractmethod
+    def compile(self):
+        pass
 
 
 class FunctionDeclaration(Declaration):
@@ -53,6 +131,21 @@ class FunctionDeclaration(Declaration):
         self.return_type = return_unit[0]
         self.argument_types = list(map(operator.itemgetter(0), argument_units))
 
+    def compile(self):
+
+        if not self.compiled:
+
+            prototype = ctypes.CFUNCTYPE(*list(map(
+                self.namespace.compile,
+                [self.return_type] + self.argument_types
+            )))
+
+            self.compilation_result = prototype(
+                (self.name, self.namespace.lib))
+            self.compiled = True
+
+        return self.compilation_result
+
 
 class StructDeclaration(Declaration):
     type_name: str = "struct"
@@ -74,6 +167,22 @@ class StructDeclaration(Declaration):
             for name, type_name in member_units
         }
 
+    def compile(self):
+
+        if not self.compiled:
+
+            class compiled_struct(ctypes.Structure):
+                _fields_ = [
+                    (field_name, self.namespace.compile(field_type))
+                    for field_name, field_type
+                    in self.members.items()
+                ]
+
+            self.compilation_result = compiled_struct
+            self.compiled = True
+
+        return self.compilation_result
+
 
 class EnumDeclaration(Declaration):
     type_name: str = "enum"
@@ -93,6 +202,14 @@ class EnumDeclaration(Declaration):
 
         self.enum_type = type_unit[0]
         self.members = {name: eval(value) for name, value in member_units}
+
+    def compile(self):
+
+        if not self.compiled:
+            self.compilation_result = self.namespace.compile(self.enum_type)
+            self.compiled = True
+
+        return self.compilation_result
 
 
 class FlagsDeclaration(Declaration):
@@ -118,6 +235,14 @@ class FlagsDeclaration(Declaration):
         self.flags_type = type_unit[0]
         self.members = {name: eval(value) for name, value in flag_units}
 
+    def compile(self):
+
+        if not self.compiled:
+            self.compilation_result = self.namespace.compile(self.flags_type)
+            self.compiled = True
+
+        return self.compilation_result
+
 
 class VariableDeclaration(Declaration):
     type_name: str = "variable"
@@ -135,6 +260,11 @@ class VariableDeclaration(Declaration):
                 "Variable declaration must have one value for @type.")
 
         self.variable_type = type_unit[0]
+
+    def compile(self):
+        raise TypeError(
+            f"Tried to compile variable `{self.name}`. Variables cannot be "
+            "used like type names. Use @typedef instead.")
 
 
 class TypedefDeclaration(Declaration):
@@ -155,6 +285,14 @@ class TypedefDeclaration(Declaration):
 
         self.old_type = from_type_unit[0]
 
+    def compile(self):
+
+        if not self.compiled:
+            self.compilation_result = self.namespace.compile(self.old_type)
+            self.compiled = True
+
+        return self.compilation_result
+
 
 _DECLARATIONS = [
     FunctionDeclaration, StructDeclaration, EnumDeclaration, FlagsDeclaration,
@@ -167,8 +305,8 @@ class ParserError(Exception):
 
 class FileParser:
 
-    def __init__(self):
-        self.declarations = DeclarationsNamespace()
+    def __init__(self, lib: ctypes.CDLL):
+        self.declarations = DeclarationsNamespace(lib=lib)
         self.live_objects = list()
 
     def parse_files(
@@ -189,10 +327,7 @@ class FileParser:
                 self.scrap_file_declarations(self, file)
 
     def initialize_objects(self):
-        self.live_objects = [
-            declaration.initialize(self.declarations)
-            for declaration
-            in self.declarations.values()]
+        self.declarations.compile_all()
 
     def scrap_file_declarations(self, file: typing.TextIO):
 
