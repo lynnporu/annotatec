@@ -1,5 +1,6 @@
 import re
 import typing
+import operator
 from collections import defaultdict
 
 
@@ -9,14 +10,16 @@ _COMMENT_END_RE = re.compile(r"\s*\*/$")
 UnitType = typing.Tuple[str, typing.Tuple[str]]
 UnitsType = typing.List[UnitType]
 
+UnitValues = tuple
+UnitValuesList = typing.List[UnitValues]
+
 
 class Declaration:
     type_name: str = "declaration"
     singular_units: list = []
     plural_units: list = []
 
-    def __init__(self, name: str, *args, **kwargs):
-        print(str(self), name, kwargs)
+    def __init__(self, name: str):
         self.name = name
 
 
@@ -24,6 +27,24 @@ class FunctionDeclaration(Declaration):
     type_name: str = "function"
     singular_units = ["return"]
     plural_units = ["argument"]
+
+    def __init__(
+        self,
+        name: str,
+        return_unit: UnitValues, argument_units: UnitValuesList
+    ):
+        super().__init__(name)
+
+        if len(return_unit) != 1:
+            raise ParserError(
+                "Function declaration have more than one values for return.")
+
+        if any(len(argument) != 1 for argument in argument_units):
+            raise ParserError(
+                "Function declaration have more than one values for argument.")
+
+        self.return_type = return_unit[0]
+        self.argument_types = list(map(operator.itemgetter(0), argument_units))
 
 
 class StructDeclaration(Declaration):
@@ -157,12 +178,13 @@ class FileParser:
                     raise ParserError(
                         f"Declaration {declaration_type} does not have a name")
                 declaration_name = unit_values[0]
+                continue
 
             elif stripped in declaration_type.singular_units:
-                singular_units[stripped] = unit_values
+                singular_units[stripped + "_unit"] = unit_values
 
             elif stripped in declaration_type.plural_units:
-                plural_units[stripped].append(unit_values)
+                plural_units[stripped + "_units"].append(unit_values)
 
             else:
                 raise ParserError(
@@ -226,4 +248,4 @@ class FileParser:
 
             char_buffer.append(char)
 
-        return units_type_name, units
+        return units_type_name, tuple(units)
