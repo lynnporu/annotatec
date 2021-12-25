@@ -109,6 +109,12 @@ class Declaration(metaclass=abc.ABCMeta):
         pass
 
 
+class MembersDeclaration:
+
+    def __getattr__(self, key):
+        return self.members[key]
+
+
 class FunctionDeclaration(Declaration):
     type_name: str = "function"
     singular_units = ["return"]
@@ -155,7 +161,7 @@ class FunctionDeclaration(Declaration):
         return self.compilation_result
 
 
-class StructDeclaration(Declaration):
+class StructDeclaration(Declaration, MembersDeclaration):
     type_name: str = "struct"
     plural_units = ["member"]
 
@@ -192,7 +198,7 @@ class StructDeclaration(Declaration):
         return self.compilation_result
 
 
-class EnumDeclaration(Declaration):
+class EnumDeclaration(Declaration, MembersDeclaration):
     type_name: str = "enum"
     singular_units = ["type"]
     plural_units = ["member"]
@@ -220,7 +226,7 @@ class EnumDeclaration(Declaration):
         return self.compilation_result
 
 
-class FlagsDeclaration(Declaration):
+class FlagsDeclaration(Declaration, MembersDeclaration):
     type_name: str = "flags"
     singular_units = ["type"]
     plural_units = ["flag"]
