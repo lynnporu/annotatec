@@ -317,6 +317,9 @@ class ParserError(Exception):
     pass
 
 
+AddressOrFile = typing.Union[str, typing.TextIO]
+
+
 class FileParser:
 
     def __init__(self, lib: ctypes.CDLL):
@@ -324,28 +327,30 @@ class FileParser:
         self.live_objects = list()
 
     def parse_files(
-        self, files: typing.List[typing.Union[str, typing.TextIO]]
+        self, files: typing.List[AddressOrFile]
     ):
         self.scrap_files(files)
         self.initialize_objects()
 
     def scrap_files(
-        self, files: typing.List[typing.Union[str, typing.TextIO]]
+        self, files: typing.List[AddressOrFile]
     ):
 
         for file in files:
-            if isinstance(file, str):
-                with open(file, mode="r") as file_buffer:
-                    self.scrap_file_declarations(file_buffer)
-            else:
-                self.scrap_file_declarations(file)
+            self.scrap_file_declarations(file)
 
     def initialize_objects(self):
         self.declarations.compile_all()
 
-    def scrap_file_declarations(self, file: typing.TextIO):
+    def scrap_file_declarations(self, file: AddressOrFile):
 
-        lines = "".join(file.readlines()).split("\n")
+        if isinstance(file, str):
+            with open(file, mode="r") as file_buffer:
+                file_lines = file_buffer.readlines()
+        else:
+            file_lines = file.readlines()
+
+        lines = "".join(file_lines).split("\n")
 
         declaration_buffer = list()
         inside_declaration = False
