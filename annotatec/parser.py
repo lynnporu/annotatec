@@ -51,20 +51,83 @@ class StructDeclaration(Declaration):
     type_name: str = "struct"
     plural_units = ["member"]
 
+    def __init__(
+        self,
+        name: str,
+        member_units: UnitValuesList
+    ):
+        super().__init__(name)
+
+        if any(len(member) != 2 for member in member_units):
+            raise ParserError(
+                "Struct declaration must have exactly 2 values for member.")
+
+        self.members = {
+            name: type_name
+            for name, type_name in member_units
+        }
+
 
 class EnumDeclaration(Declaration):
     type_name: str = "enum"
+    singular_units = ["type"]
     plural_units = ["member"]
+
+    def __init__(
+        self,
+        name: str,
+        type_unit: UnitValues, member_units: UnitValuesList
+    ):
+        super().__init__(name)
+
+        if any(len(member) != 2 for member in member_units):
+            raise ParserError(
+                "Struct declaration must have exactly 2 values for member.")
+
+        self.enum_type = type_unit[0]
+        self.members = {name: eval(value) for name, value in member_units}
 
 
 class FlagsDeclaration(Declaration):
     type_name: str = "flags"
+    singular_units = ["type"]
     plural_units = ["flag"]
+
+    def __init__(
+        self,
+        name: str,
+        type_unit: UnitValues, flag_units: UnitValuesList
+    ):
+        super().__init__(name)
+
+        if len(type_unit) != 1:
+            raise ParserError(
+                "Flags declaration must have one value for type.")
+
+        if any(len(member) != 2 for member in flag_units):
+            raise ParserError(
+                "Flags declaration must have exactly 2 values for flag.")
+
+        self.flags_type = type_unit[0]
+        self.members = {name: eval(value) for name, value in flag_units}
 
 
 class VariableDeclaration(Declaration):
     type_name: str = "variable"
     singular_units = ["type"]
+
+    def __init__(
+        self,
+        name: str,
+        type_unit: UnitValues, flag_units: UnitValuesList
+    ):
+        super().__init__(name)
+
+        if len(type_unit) != 1:
+            raise ParserError(
+                "Variable declaration must have one value for type.")
+
+        self.variable_type = type_unit[0]
 
 
 _DECLARATIONS = [
