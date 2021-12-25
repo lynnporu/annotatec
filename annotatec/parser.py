@@ -41,7 +41,7 @@ BASE_C_TYPES = {
     "longlong": ctypes.c_longlong,
     "ulonglong": ctypes.c_ulonglong,
 
-    "string": ctypes.POINTER(ctypes.c_char),
+    "string": ctypes.c_char_p,
 
     "size": ctypes.c_size_t,
     "ssize": ctypes.c_ssize_t,
