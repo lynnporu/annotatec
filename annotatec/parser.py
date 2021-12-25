@@ -81,7 +81,12 @@ class DeclarationsNamespace(dict):
                 f"Trying to get `{name}` object, but there's no objects with "
                 "such name in the namespace")
         else:
-            return self[name].compile()
+            obj = self[name]
+
+        if isinstance(obj, VariableDeclaration):
+            return obj
+        else:
+            return obj.compile()
 
     def compile_all(self):
         for name, declaration in self.items():
@@ -279,6 +284,20 @@ class VariableDeclaration(Declaration):
         raise TypeError(
             f"Tried to compile variable `{self.name}`. Variables cannot be "
             "used like type names. Use @typedef instead.")
+
+    @property
+    def var_type(self):
+
+        if not self.compiled:
+            self.compilation_result = \
+                self.namespace.compile(self.variable_type)
+            self.compiled = True
+
+        return self.compilation_result
+
+    @property
+    def value(self):
+        return self.var_type.in_dll(self.namespace.lib, self.name)
 
 
 class TypedefDeclaration(Declaration):
