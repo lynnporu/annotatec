@@ -78,13 +78,15 @@ class DeclarationsNamespace(dict):
 
         if name not in self:
             raise NamespaceError(
-                "Trying to get `{name}` object, but there's no objects with "
+                f"Trying to get `{name}` object, but there's no objects with "
                 "such name in the namespace")
         else:
             return self[name].compile()
 
     def compile_all(self):
-        for name in self.keys():
+        for name, declaration in self.items():
+            if isinstance(declaration, VariableDeclaration):
+                continue
             self.compile(name)
 
 
@@ -115,7 +117,7 @@ class FunctionDeclaration(Declaration):
     def __init__(
         self,
         namespace: DeclarationsNamespace, name: str,
-        return_unit: UnitValues, argument_units: UnitValuesList
+        return_unit: UnitValues, argument_units: UnitValuesList = None
     ):
         super().__init__(namespace, name)
 
@@ -123,13 +125,19 @@ class FunctionDeclaration(Declaration):
             raise ParserError(
                 "Function declaration have more than one values for @return.")
 
-        if any(len(argument) != 1 for argument in argument_units):
+        if (
+            argument_units and
+            any(len(argument) != 1 for argument in argument_units)
+        ):
             raise ParserError(
                 "Function declaration have more than one values "
                 "for @argument.")
 
         self.return_type = return_unit[0]
-        self.argument_types = list(map(operator.itemgetter(0), argument_units))
+        self.argument_types = list(map(
+            operator.itemgetter(0),
+            argument_units or []
+        ))
 
     def compile(self):
 
@@ -251,7 +259,7 @@ class VariableDeclaration(Declaration):
     def __init__(
         self,
         namespace: DeclarationsNamespace, name: str,
-        type_unit: UnitValues, flag_units: UnitValuesList
+        type_unit: UnitValues
     ):
         super().__init__(namespace, name)
 
@@ -274,7 +282,7 @@ class TypedefDeclaration(Declaration):
     def __init__(
         self,
         namespace: DeclarationsNamespace, name: str,
-        from_type_unit: UnitValues, flag_units: UnitValuesList
+        from_type_unit: UnitValues
     ):
         super().__init__(namespace, name)
 
@@ -322,9 +330,9 @@ class FileParser:
         for file in files:
             if isinstance(file, str):
                 with open(file, mode="r") as file_buffer:
-                    self.scrap_file_declarations(self, file_buffer)
+                    self.scrap_file_declarations(file_buffer)
             else:
-                self.scrap_file_declarations(self, file)
+                self.scrap_file_declarations(file)
 
     def initialize_objects(self):
         self.declarations.compile_all()
