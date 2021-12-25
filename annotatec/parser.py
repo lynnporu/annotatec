@@ -14,12 +14,17 @@ UnitValues = tuple
 UnitValuesList = typing.List[UnitValues]
 
 
+class DeclarationsNamespace(dict):
+    pass
+
+
 class Declaration:
     type_name: str = "declaration"
     singular_units: list = []
     plural_units: list = []
 
-    def __init__(self, name: str):
+    def __init__(self, namespace: DeclarationsNamespace, name: str):
+        self.namespace = namespace
         self.name = name
 
 
@@ -30,18 +35,19 @@ class FunctionDeclaration(Declaration):
 
     def __init__(
         self,
-        name: str,
+        namespace: DeclarationsNamespace, name: str,
         return_unit: UnitValues, argument_units: UnitValuesList
     ):
-        super().__init__(name)
+        super().__init__(namespace, name)
 
         if len(return_unit) != 1:
             raise ParserError(
-                "Function declaration have more than one values for return.")
+                "Function declaration have more than one values for @return.")
 
         if any(len(argument) != 1 for argument in argument_units):
             raise ParserError(
-                "Function declaration have more than one values for argument.")
+                "Function declaration have more than one values "
+                "for @argument.")
 
         self.return_type = return_unit[0]
         self.argument_types = list(map(operator.itemgetter(0), argument_units))
@@ -53,14 +59,14 @@ class StructDeclaration(Declaration):
 
     def __init__(
         self,
-        name: str,
+        namespace: DeclarationsNamespace, name: str,
         member_units: UnitValuesList
     ):
-        super().__init__(name)
+        super().__init__(namespace, name)
 
         if any(len(member) != 2 for member in member_units):
             raise ParserError(
-                "Struct declaration must have exactly 2 values for member.")
+                "Struct declaration must have exactly 2 values for @member.")
 
         self.members = {
             name: type_name
@@ -75,14 +81,14 @@ class EnumDeclaration(Declaration):
 
     def __init__(
         self,
-        name: str,
+        namespace: DeclarationsNamespace, name: str,
         type_unit: UnitValues, member_units: UnitValuesList
     ):
-        super().__init__(name)
+        super().__init__(namespace, name)
 
         if any(len(member) != 2 for member in member_units):
             raise ParserError(
-                "Struct declaration must have exactly 2 values for member.")
+                "Struct declaration must have exactly 2 values for @member.")
 
         self.enum_type = type_unit[0]
         self.members = {name: eval(value) for name, value in member_units}
@@ -95,18 +101,18 @@ class FlagsDeclaration(Declaration):
 
     def __init__(
         self,
-        name: str,
+        namespace: DeclarationsNamespace, name: str,
         type_unit: UnitValues, flag_units: UnitValuesList
     ):
-        super().__init__(name)
+        super().__init__(namespace, name)
 
         if len(type_unit) != 1:
             raise ParserError(
-                "Flags declaration must have one value for type.")
+                "Flags declaration must have one value for @type.")
 
         if any(len(member) != 2 for member in flag_units):
             raise ParserError(
-                "Flags declaration must have exactly 2 values for flag.")
+                "Flags declaration must have exactly 2 values for @flag.")
 
         self.flags_type = type_unit[0]
         self.members = {name: eval(value) for name, value in flag_units}
@@ -118,21 +124,40 @@ class VariableDeclaration(Declaration):
 
     def __init__(
         self,
-        name: str,
+        namespace: DeclarationsNamespace, name: str,
         type_unit: UnitValues, flag_units: UnitValuesList
     ):
-        super().__init__(name)
+        super().__init__(namespace, name)
 
         if len(type_unit) != 1:
             raise ParserError(
-                "Variable declaration must have one value for type.")
+                "Variable declaration must have one value for @type.")
 
         self.variable_type = type_unit[0]
 
 
+class TypedefDeclaration(Declaration):
+    type_name: str = "typedef"
+    singular_units = ["from_type"]
+
+    def __init__(
+        self,
+        namespace: DeclarationsNamespace, name: str,
+        from_type_unit: UnitValues, flag_units: UnitValuesList
+    ):
+        super().__init__(namespace, name)
+
+        if len(from_type_unit) != 1:
+            raise ParserError(
+                "TypedefDeclaration declaration must have one value "
+                "for @from_type.")
+
+        self.old_type = from_type_unit[0]
+
+
 _DECLARATIONS = [
     FunctionDeclaration, StructDeclaration, EnumDeclaration, FlagsDeclaration,
-    VariableDeclaration]
+    VariableDeclaration, TypedefDeclaration]
 
 
 class ParserError(Exception):
@@ -142,7 +167,7 @@ class ParserError(Exception):
 class FileParser:
 
     def __init__(self):
-        self.declarations = dict()
+        self.declarations = DeclarationsNamespace()
         self.live_objects = list()
 
     def parse_files(
