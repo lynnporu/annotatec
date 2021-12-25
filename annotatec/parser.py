@@ -1,5 +1,6 @@
 import re
 import typing
+from collections import defaultdict
 
 
 _COMMENT_START_RE = re.compile(r"^/\*\s*")
@@ -14,13 +15,9 @@ class Declaration:
     singular_units: list = []
     plural_units: list = []
 
-    def __init__(self, name: str):
+    def __init__(self, name: str, *args, **kwargs):
+        print(str(self), name, kwargs)
         self.name = name
-
-    @classmethod
-    def from_units(cls, units: UnitsType):
-        print(f"units {str(units)}")
-        return cls(name="abracadabra")
 
 
 class FunctionDeclaration(Declaration):
@@ -52,6 +49,10 @@ class VariableDeclaration(Declaration):
 _DECLARATIONS = [
     FunctionDeclaration, StructDeclaration, EnumDeclaration, FlagsDeclaration,
     VariableDeclaration]
+
+
+class ParserError(Exception):
+    pass
 
 
 class FileParser:
@@ -114,7 +115,39 @@ class FileParser:
         if not declaration_type:
             return
 
-        declaration = declaration_type.from_units(units)
+        self.add_declaration(declaration_type, units)
+
+    def add_declaration(self, declaration_type, units):
+
+        singular_units = dict()
+        plural_units = defaultdict(list)
+
+        declaration_name = None
+
+        for unit_name, unit_values in units:
+
+            stripped = unit_name.lstrip("@")
+
+            if stripped == declaration_type.type_name:
+                if not unit_values:
+                    raise ParserError(
+                        f"Declaration {declaration_type} does not have a name")
+                declaration_name = unit_values[0]
+
+            elif stripped in declaration_type.singular_units:
+                singular_units[stripped] = unit_values
+
+            elif stripped in declaration_type.plural_units:
+                plural_units[stripped].append(unit_values)
+
+            else:
+                raise ParserError(
+                    f"Unknown unit type {unit_name} in "
+                    f"declaration {declaration_type}")
+
+        declaration = declaration_type(
+            name=declaration_name, **singular_units, **plural_units)
+
         self.declarations[declaration.name] = declaration
 
     def parse_line_units(self, line: str) -> UnitsType:
