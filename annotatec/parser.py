@@ -59,8 +59,32 @@ class FileParser:
 
     def __init__(self):
         self.declarations = dict()
+        self.live_objects = list()
 
-    def parse_file(self, file: typing.TextIO):
+    def parse_files(
+        self, files: typing.List[typing.Union[str, typing.TextIO]]
+    ):
+        self.scrap_files(files)
+        self.initialize_objects()
+
+    def scrap_files(
+        self, files: typing.List[typing.Union[str, typing.TextIO]]
+    ):
+
+        for file in files:
+            if isinstance(file, str):
+                with open(file, mode="r") as file_buffer:
+                    self.scrap_file_declarations(self, file_buffer)
+            else:
+                self.scrap_file_declarations(self, file)
+
+    def initialize_objects(self):
+        self.live_objects = [
+            declaration.initialize(self.declarations)
+            for declaration
+            in self.declarations.values()]
+
+    def scrap_file_declarations(self, file: typing.TextIO):
 
         lines = "".join(file.readlines()).split("\n")
 
