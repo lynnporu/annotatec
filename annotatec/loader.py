@@ -40,3 +40,26 @@ class Loader:
 
     def __getattr__(self, key):
         return self.parser.declarations.compile(key)
+
+    @property
+    def ref(self):
+        """Get pointer of any next objects.
+
+        Example:
+            Support `loader.obj` evaluates to `int`. That means,
+            `loader.ref.obj` will be evaluated to `ctypes.POINTER(int)`.
+        """
+        class referencer:
+            def __init__(referencer_self, loader_self, depth: int = 1):
+                referencer_self.depth = depth
+                referencer_self.loader = loader_self
+
+            def __getattr__(self, key):
+                return self.loader.parser.declarations.compile(
+                    key + ("*" * self.depth))
+
+            @property
+            def ref(self):
+                return referencer(self.loader, self.depth + 1)
+
+        return referencer(loader_self=self, depth=1)
