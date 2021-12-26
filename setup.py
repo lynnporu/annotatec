@@ -6,7 +6,7 @@ with open("README.md", mode="r", encoding="utf-8") as file:
 
 setuptools.setup(
     name="annotatec",
-    version="0.1",
+    version="1.0",
     author="Pavlo Tymoshenko",
     author_email="p.tymoshen@gmail.com",
     description="Create annotations for ctypes straight in your C code",
@@ -16,7 +16,7 @@ setuptools.setup(
     url="https://github.com/lynnporu/annotatec",
     classifiers=[
         "Programming Language :: Python :: 3.8",
-        "Development Status :: 4 - Beta",
+        "Development Status :: 5 - Production/Stable",
         "Environment :: Plugins",
         "Intended Audience :: Developers",
         "License :: OSI Approved :: MIT License",
