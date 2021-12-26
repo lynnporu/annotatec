@@ -211,7 +211,7 @@ class EnumDeclaration(Declaration, MembersDeclaration):
     def __init__(
         self,
         namespace: DeclarationsNamespace, name: str,
-        type_unit: UnitValues, member_units: UnitValuesList
+        member_units: UnitValuesList, type_unit: UnitValues = None
     ):
         super().__init__(namespace, name)
 
@@ -219,7 +219,11 @@ class EnumDeclaration(Declaration, MembersDeclaration):
             raise ParserError(
                 "Struct declaration must have exactly 2 values for @member.")
 
-        self.enum_type = type_unit[0]
+        if not type_unit:
+            self.enum_type = BASE_C_TYPES["int"]
+        else:
+            self.enum_type = type_unit[0]
+
         self.members = {name: eval(value) for name, value in member_units}
 
     def compile(self):
