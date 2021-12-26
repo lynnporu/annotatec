@@ -2,7 +2,7 @@
   <img src="https://github.com/lynnporu/annotatec/raw/dev/logo.png">
 </p>
 
-![PyPI](https://img.shields.io/pypi/v/annotatec)
+[![PyPI](https://img.shields.io/pypi/v/annotatec.svg)](https://pypi.python.org/pypi/annotatec)
 ![GitHub repo size](https://img.shields.io/github/repo-size/lynnporu/annotatec)
 ![GitHub](https://img.shields.io/github/license/lynnporu/annotatec)
 
