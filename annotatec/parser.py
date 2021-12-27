@@ -211,7 +211,7 @@ class EnumDeclaration(Declaration, MembersDeclaration):
     def __init__(
         self,
         namespace: DeclarationsNamespace, name: str,
-        type_unit: UnitValues, member_units: UnitValuesList
+        member_units: UnitValuesList, type_unit: UnitValues = None
     ):
         super().__init__(namespace, name)
 
@@ -219,7 +219,10 @@ class EnumDeclaration(Declaration, MembersDeclaration):
             raise ParserError(
                 "Struct declaration must have exactly 2 values for @member.")
 
-        self.enum_type = type_unit[0]
+        self.enum_type = (
+            BASE_C_TYPES["int"] if not type_unit else type_unit[0]
+        )
+
         self.members = {name: eval(value) for name, value in member_units}
 
     def compile(self):
@@ -243,15 +246,14 @@ class FlagsDeclaration(Declaration, MembersDeclaration):
     ):
         super().__init__(namespace, name)
 
-        if len(type_unit) != 1:
-            raise ParserError(
-                "Flags declaration must have one value for @type.")
-
         if any(len(member) != 2 for member in flag_units):
             raise ParserError(
                 "Flags declaration must have exactly 2 values for @flag.")
 
-        self.flags_type = type_unit[0]
+        self.flags_type = (
+            BASE_C_TYPES["int"] if not type_unit else type_unit[0]
+        )
+
         self.members = {name: eval(value) for name, value in flag_units}
 
     def compile(self):
