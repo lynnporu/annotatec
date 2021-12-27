@@ -12,6 +12,20 @@
 
 Imagine you're developing C library and already have more than 50 functions. Sometimes you change signatures of old functions or rename them. It'll be headache to write and support all [ctypes](https://docs.python.org/3/library/ctypes.html)-declarations for Python wrapper. **annotatec** will create all Python objects for you. All you need is to provide declarations, which can be placed directly into your C code.
 
+## How to install
+
+This library can be installed with `pip`:
+
+```bash
+pip install annotatec
+```
+
+Or build it and install yourself:
+
+```bash
+pip install git+https://github.com/lynnporu/annotatec.git#egg=annotatec
+```
+
 ## Minimal livable example
 
 You have some library `lib.c` and it's header `lib.h`. These files were compiled into `lib.so` (or `lib.dll` in Windows).
