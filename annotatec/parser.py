@@ -1,6 +1,8 @@
 import re
 import ctypes
 import typing
+import pathlib
+import itertools
 from collections import defaultdict
 
 from . import declarations
@@ -27,19 +29,78 @@ class FileParser:
         self.scrap_files(files)
         self.initialize_objects()
 
+    def scrap_sources(
+        self,
+        sources: typing.list[libtypes.AddressOrFile],
+        c_extensions: bool = False, h_extensions: bool = True
+    ):
+        """A single source can be a file (in form of address or typing.TextIO)
+        or a directory.
+        """
+        for source in sources:
+
+            if isinstance(source, typing.TextIO):
+                self.scrap_file_declarations(source)
+
+            path = (
+                pathlib.Path(source)
+                if not isinstance(pathlib.Path)
+                else source
+            )
+
+            if path.is_dir():
+                self.scrap_directory(
+                    source,
+                    c_extensions=c_extensions, h_extensions=h_extensions)
+            else:
+                self.scrap_file_declarations(source)
+
+    def scrap_directory(
+        self, directory: libtypes.Directory,
+        c_extensions: bool = False, h_extensions: bool = True
+    ):
+        if isinstance(directory, str):
+            directory = pathlib.Path(directory)
+
+        assert directory.is_dir()
+
+        extensions = {
+            "c": c_extensions,
+            "h": h_extensions
+        }
+
+        include_extensions = [
+            extension
+            for extension, include in extensions
+            if include]
+
+        self.scrap_files(self.get_path_files(directory, include_extensions))
+
     def scrap_files(
-        self, files: typing.List[libtypes.AddressOrFile]
+        self, files: typing.List[libtypes.AddressOrFile],
     ):
 
         for file in files:
             self.scrap_file_declarations(file)
+
+    def get_path_files(self, path: pathlib.Path, extensions: typing.List[str]):
+
+        def files_generator():
+            for file in itertools.chain(*[
+                path.glob(f"*.{ext}")
+                for ext in extensions
+            ]):
+                if file.is_file():
+                    yield file
+
+        return list(files_generator())
 
     def initialize_objects(self):
         self.declarations.compile_all()
 
     def scrap_file_declarations(self, file: libtypes.AddressOrFile):
 
-        if isinstance(file, str):
+        if not isinstance(file, typing.TextIO):
             with open(file, mode="r") as file_buffer:
                 file_lines = file_buffer.readlines()
         else:
