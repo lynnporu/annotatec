@@ -1,5 +1,6 @@
 import ctypes
 import typing
+import libtypes
 
 from . import parser
 
@@ -10,8 +11,9 @@ class Loader:
 
     def __init__(
         self,
-        library: typing.Union[str, ctypes.CDLL],
-        headers: typing.List[typing.Union[str, typing.TextIO]],
+        library: libtypes.AddressOrDLL,
+        sources: typing.List[libtypes.AddressOrFile],
+        c_extensions: bool = False, h_extensions: bool = True,
         precompile: bool = True
     ):
         """Loads library and parse headers.
@@ -19,11 +21,14 @@ class Loader:
         Arguments:
             library: str or ctypes.CDLL - address of the shared objects (DLL)
                 or opened library.
-            headers: list of strings or list of files - files with declarations
-                to parse.
+            sources: list of strings or list of files - files or directories
+                with files with declarations to parse.
             precompile: bool - if set to True, than all objects will be
                 compiled immediately. This option allows to lazy compile
                 only objects that are needed.
+            c_extension: bool - if set to True and a directory given, then all
+                `.c` files in this directory will be parsed.
+            h_extensions: bool - parse all .h files in given directory.
 
         """
 
@@ -33,13 +38,46 @@ class Loader:
             else library)
         self.parser = parser.FileParser(lib=self.libc)
 
+        self.parse_sources(
+            sources,
+            c_extensions=c_extensions, h_extensions=h_extensions)
+
         if precompile:
-            self.parser.parse_files(headers)
-        else:
-            self.parser.scrap_files(headers)
+            self.compile()
 
     def __getattr__(self, key):
         return self.parser.declarations.compile(key)
+
+    def parse_sources(
+        self,
+        sources: typing.Union[
+            libtypes.AddressOrFile,
+            typing.List[libtypes.AddressOrFile]
+        ],
+        *args, **kwargs
+    ):
+        """Parse a single source, which can be a file or directory.
+        """
+        if not isinstance(sources, list):
+            sources = [sources]
+
+        self.parser.scrap_sources(sources, *args, **kwargs)
+
+    def compile(self):
+        """Compile given sources.
+        """
+        self.parser.initialize_objects()
+
+    def reset(self):
+        """This reset the compilation.
+        """
+        self.parser.reset_compilations()
+
+    def recompile(self):
+        """This will recompile the namespace.
+        """
+        self.parser.reset_compilations()
+        self.parser.initialize_objects()
 
     @property
     def ref(self):
