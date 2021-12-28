@@ -2,6 +2,7 @@ import re
 import ctypes
 import typing
 import pathlib
+import itertools
 from collections import defaultdict
 
 from . import declarations
@@ -62,12 +63,24 @@ class FileParser:
         for file in source_files:
             self.scrap_file_declarations(file)
 
+    def get_path_files(self, path: pathlib.Path, extensions: typing.List[str]):
+
+        def files_generator():
+            for file in itertools.chain(*[
+                path.glob(f"*.{ext}")
+                for ext in extensions
+            ]):
+                if file.is_file():
+                    yield file
+
+        return list(files_generator())
+
     def initialize_objects(self):
         self.declarations.compile_all()
 
     def scrap_file_declarations(self, file: libtypes.AddressOrFile):
 
-        if isinstance(file, str):
+        if not isinstance(file, typing.TextIO):
             with open(file, mode="r") as file_buffer:
                 file_lines = file_buffer.readlines()
         else:
