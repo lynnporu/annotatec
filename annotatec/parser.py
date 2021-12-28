@@ -29,12 +29,40 @@ class FileParser:
         self.scrap_files(files)
         self.initialize_objects()
 
-    def scrap_files(
-        self, files: typing.List[libtypes.AddressOrFile],
+    def scrap_sources(
+        self,
+        sources: typing.list[libtypes.AddressOrFile],
         c_extensions: bool = False, h_extensions: bool = True
     ):
+        """A single source can be a file (in form of address or typing.TextIO)
+        or a directory.
+        """
+        for source in sources:
 
-        source_files = list()
+            if isinstance(source, typing.TextIO):
+                self.scrap_file_declarations(source)
+
+            path = (
+                pathlib.Path(source)
+                if not isinstance(pathlib.Path)
+                else source
+            )
+
+            if path.is_dir():
+                self.scrap_directory(
+                    source,
+                    c_extensions=c_extensions, h_extensions=h_extensions)
+            else:
+                self.scrap_file_declarations(source)
+
+    def scrap_directory(
+        self, directory: libtypes.Directory,
+        c_extensions: bool = False, h_extensions: bool = True
+    ):
+        if isinstance(directory, str):
+            directory = pathlib.Path(directory)
+
+        assert directory.is_dir()
 
         extensions = {
             "c": c_extensions,
@@ -46,21 +74,13 @@ class FileParser:
             for extension, include in extensions
             if include]
 
+        self.scrap_files(self.get_path_files(directory, include_extensions))
+
+    def scrap_files(
+        self, files: typing.List[libtypes.AddressOrFile],
+    ):
+
         for file in files:
-
-            if isinstance(file, typing.TextIO):
-                source_files.append(file)
-
-            source_path = pathlib.Path(file)
-
-            if source_path.is_file():
-                source_files.append(source_path)
-            else:
-                source_files.extend(self.get_path_files(
-                    source_path, include_extensions
-                ))
-
-        for file in source_files:
             self.scrap_file_declarations(file)
 
     def get_path_files(self, path: pathlib.Path, extensions: typing.List[str]):
