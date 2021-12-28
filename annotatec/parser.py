@@ -23,12 +23,6 @@ class FileParser:
         self.declarations = declarations.DeclarationsNamespace(lib=lib)
         self.live_objects = list()
 
-    def parse_files(
-        self, files: typing.List[libtypes.AddressOrFile]
-    ):
-        self.scrap_files(files)
-        self.initialize_objects()
-
     def scrap_sources(
         self,
         sources: typing.list[libtypes.AddressOrFile],

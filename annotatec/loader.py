@@ -1,5 +1,5 @@
 import ctypes
-import typing
+import libtypes
 
 from . import parser
 
@@ -10,8 +10,7 @@ class Loader:
 
     def __init__(
         self,
-        library: typing.Union[str, ctypes.CDLL],
-        headers: typing.List[typing.Union[str, typing.TextIO]],
+        library: libtypes.AddressOrDLL, sources: libtypes.AddressOrFile,
         precompile: bool = True
     ):
         """Loads library and parse headers.
@@ -33,10 +32,10 @@ class Loader:
             else library)
         self.parser = parser.FileParser(lib=self.libc)
 
+        self.parser.scrap_sources(sources)
+
         if precompile:
-            self.parser.parse_files(headers)
-        else:
-            self.parser.scrap_files(headers)
+            self.parser.initialize_objects()
 
     def __getattr__(self, key):
         return self.parser.declarations.compile(key)
