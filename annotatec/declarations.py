@@ -88,6 +88,16 @@ class DeclarationsNamespace(dict):
                 continue
             self.compile(name)
 
+    def reset_compilation(self, name: str):
+        if isinstance(self[name], VariableDeclaration):
+            return
+        self[name].compiled = False
+        self[name].compilation_result = None
+
+    def reset_compilations(self):
+        for name in self.keys():
+            self.reset_compilation(name)
+
 
 class Declaration(metaclass=abc.ABCMeta):
     type_name: str = "declaration"

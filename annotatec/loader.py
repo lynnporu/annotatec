@@ -68,6 +68,17 @@ class Loader:
         """
         self.parser.initialize_objects()
 
+    def reset(self):
+        """This reset the compilation.
+        """
+        self.parser.reset_compilations()
+
+    def recompile(self):
+        """This will recompile the namespace.
+        """
+        self.parser.reset_compilations()
+        self.parser.initialize_objects()
+
     @property
     def ref(self):
         """Get pointer of any next objects.
