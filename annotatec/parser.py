@@ -1,6 +1,7 @@
 import re
 import ctypes
 import typing
+import pathlib
 from collections import defaultdict
 
 from . import declarations
@@ -28,10 +29,37 @@ class FileParser:
         self.initialize_objects()
 
     def scrap_files(
-        self, files: typing.List[libtypes.AddressOrFile]
+        self, files: typing.List[libtypes.AddressOrFile],
+        c_extensions: bool = False, h_extensions: bool = True
     ):
 
+        source_files = list()
+
+        extensions = {
+            "c": c_extensions,
+            "h": h_extensions
+        }
+
+        include_extensions = [
+            extension
+            for extension, include in extensions
+            if include]
+
         for file in files:
+
+            if isinstance(file, typing.TextIO):
+                source_files.append(file)
+
+            source_path = pathlib.Path(file)
+
+            if source_path.is_file():
+                source_files.append(source_path)
+            else:
+                source_files.extend(self.get_path_files(
+                    source_path, include_extensions
+                ))
+
+        for file in source_files:
             self.scrap_file_declarations(file)
 
     def initialize_objects(self):
