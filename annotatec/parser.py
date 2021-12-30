@@ -25,7 +25,7 @@ class FileParser:
 
     def scrap_sources(
         self,
-        sources: typing.list[libtypes.AddressOrFile],
+        sources: typing.List[libtypes.AddressOrFile],
         c_extensions: bool = False, h_extensions: bool = True
     ):
         """A single source can be a file (in form of address or typing.TextIO)
@@ -38,7 +38,7 @@ class FileParser:
 
             path = (
                 pathlib.Path(source)
-                if not isinstance(pathlib.Path)
+                if not isinstance(source, pathlib.Path)
                 else source
             )
 
@@ -65,8 +65,9 @@ class FileParser:
 
         include_extensions = [
             extension
-            for extension, include in extensions
-            if include]
+            for extension, include in extensions.items()
+            if include
+        ]
 
         self.scrap_files(self.get_path_files(directory, include_extensions))
 
