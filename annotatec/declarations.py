@@ -6,6 +6,9 @@ import operator
 from . import libtypes
 
 
+DEBUG_SHOW_COMPILATION = False
+
+
 BASE_C_TYPES = {
     "void": None,
 
@@ -61,6 +64,9 @@ class DeclarationsNamespace(dict):
 
     def compile(self, name: str):
 
+        if DEBUG_SHOW_COMPILATION:
+            print(f"parse type {name}")
+
         if name[-1] == "*":
             return ctypes.POINTER(self.compile(name[:-1]))
 
@@ -105,6 +111,10 @@ class Declaration(metaclass=abc.ABCMeta):
     plural_units: list = []
 
     def __init__(self, namespace: DeclarationsNamespace, name: str):
+
+        if DEBUG_SHOW_COMPILATION:
+            print(
+                f"process declaration @{self.type_name} {name}")
 
         self.namespace = namespace
         self.name = name
