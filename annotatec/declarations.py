@@ -62,16 +62,36 @@ class DeclarationsNamespace(dict):
         super().__init__(*args, **kwargs)
         self.lib = lib
 
-    def compile(self, name: str):
+    def unwrap(self, wrapped):
+        if isinstance(wrapped, MembersWrapper):
+            return wrapped.subject
+        else:
+            return wrapped
+
+    def compile(self, name: str, unwrap: bool = False):
+        """
+        Arguments:
+            unwrap: bool, default = False; By default enums, flags and
+                structs are being wrapped by MembersWrapper, so you can access
+                their members. Setting this to True you enfore to return C
+                type instead of the wrapper.
+        """
 
         if DEBUG_SHOW_COMPILATION:
             print(f"parse type {name}")
 
         if name[-1] == "*":
-            return ctypes.POINTER(self.compile(name[:-1]))
+            compiled = self.compile(name[:-1])
+            return ctypes.POINTER(self.unwrap(compiled))
 
         if "[" in name and "]" in name:
             type_name, amount = _ARRAY_TYPE_RE.match(name).groups()
+            compiled = self.compile(type_name) * amount
+            return (
+                self.unwrap(compiled)
+                if unwrap
+                else compiled
+            )
 
         if name in BASE_C_TYPES:
             return BASE_C_TYPES[name]
@@ -86,7 +106,17 @@ class DeclarationsNamespace(dict):
         if isinstance(obj, VariableDeclaration):
             return obj
         else:
-            return obj.compile()
+            compiled = obj.compile()
+            return (
+                self.unwrap(compiled)
+                if unwrap
+                else compiled
+            )
+
+    def compile_unwrap(self, name: str):
+        """Is equivalent to self.compile(name, unwrap=True)
+        """
+        return self.compile(name=name, unwrap=True)
 
     def compile_all(self):
         for name, declaration in self.items():
@@ -128,12 +158,6 @@ class Declaration(metaclass=abc.ABCMeta):
         pass
 
 
-class MembersDeclaration:
-
-    def __getattr__(self, key):
-        return self.members[key]
-
-
 class FunctionDeclaration(Declaration):
     type_name: str = "function"
     singular_units = ["return"]
@@ -170,7 +194,7 @@ class FunctionDeclaration(Declaration):
         if not self.compiled:
 
             prototype = ctypes.CFUNCTYPE(*list(map(
-                self.namespace.compile,
+                self.namespace.compile_unwrap,
                 [self.return_type] + self.argument_types
             )))
 
@@ -179,6 +203,34 @@ class FunctionDeclaration(Declaration):
             self.compiled = True
 
         return self.compilation_result
+
+
+class MembersDeclaration:
+
+    def __getattr__(self, key):
+        return self.members[key]
+
+
+class MembersWrapper:
+
+    def __init__(self, subject, wrapper):
+        self.subject = subject
+        self.wrapper = wrapper
+
+    def __getattr__(self, key):
+        try:
+            return getattr(self.wrapper, key)
+        except KeyError:
+            return getattr(self.subject, key)
+
+    def __call__(self, *args, **kwargs):
+        return self.subject(*args, **kwargs)
+
+    def __mul__(self, amount):
+        return MembersWrapper(
+            subject=(self.subject * amount),
+            wrapper=self.wrapper
+        )
 
 
 class StructDeclaration(Declaration, MembersDeclaration):
@@ -207,12 +259,13 @@ class StructDeclaration(Declaration, MembersDeclaration):
 
             class compiled_struct(ctypes.Structure):
                 _fields_ = [
-                    (field_name, self.namespace.compile(field_type))
+                    (field_name, self.namespace.compile_unwrap(field_type))
                     for field_name, field_type
                     in self.members.items()
                 ]
 
-            self.compilation_result = compiled_struct
+            self.compilation_result = MembersWrapper(
+                subject=compiled_struct, wrapper=self)
             self.compiled = True
 
         return self.compilation_result
@@ -244,7 +297,9 @@ class EnumDeclaration(Declaration, MembersDeclaration):
     def compile(self):
 
         if not self.compiled:
-            self.compilation_result = self.namespace.compile(self.enum_type)
+            result = self.namespace.compile_unwrap(self.enum_type)
+            self.compilation_result = MembersWrapper(
+                subject=result, wrapper=self)
             self.compiled = True
 
         return self.compilation_result
@@ -275,7 +330,9 @@ class FlagsDeclaration(Declaration, MembersDeclaration):
     def compile(self):
 
         if not self.compiled:
-            self.compilation_result = self.namespace.compile(self.flags_type)
+            result = self.namespace.compile_unwrap(self.flags_type)
+            self.compilation_result = MembersWrapper(
+                subject=result, wrapper=self)
             self.compiled = True
 
         return self.compilation_result
