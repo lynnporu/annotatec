@@ -1,7 +1,7 @@
 import ctypes
 import typing
-import libtypes
 
+from . import libtypes
 from . import parser
 
 
