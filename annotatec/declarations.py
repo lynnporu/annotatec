@@ -68,6 +68,11 @@ class DeclarationsNamespace(dict):
         else:
             return wrapped
 
+    def is_function(self, name: str):
+        """Checks if passed name is a function.
+        """
+        return hasattr(self.lib, name)
+
     def compile(self, name: str, unwrap: bool = False):
         """
         Arguments:
@@ -95,6 +100,9 @@ class DeclarationsNamespace(dict):
 
         if name in BASE_C_TYPES:
             return BASE_C_TYPES[name]
+
+        if self.is_function(name):
+            return name
 
         if name not in self:
             raise NamespaceError(
