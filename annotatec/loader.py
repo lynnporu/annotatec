@@ -3,6 +3,7 @@ import typing
 
 from . import libtypes
 from . import parser
+from . import declarations
 
 
 class Loader:
@@ -47,6 +48,15 @@ class Loader:
 
     def __getattr__(self, key):
         return self.parser.declarations.compile(key)
+
+    def __setattr__(self, key, value):
+        compiled = self.parser.declarations.compile(key)
+        if isinstance(compiled, declarations.VariableDeclaration):
+            raise ValueError(
+                f"Better implement setter function for `{key}` global "
+                "variable.")
+        else:
+            raise RuntimeError(f"`{key}` is not a variable")
 
     def parse_sources(
         self,
