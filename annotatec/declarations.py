@@ -201,10 +201,17 @@ class FunctionDeclaration(Declaration):
 
         if not self.compiled:
 
-            prototype = ctypes.CFUNCTYPE(*list(map(
-                self.namespace.compile_unwrap,
-                [self.return_type] + self.argument_types
-            )))
+            prototype = ctypes.CFUNCTYPE(
+                self.namespace.compile_unwrap(self.return_type),
+                *[
+                    # compile the name
+                    self.namespace.compile_unwrap(argument_type)
+                    if not self.namespace.is_function(argument_type)
+                    # or give (void*) if the name defines a function
+                    else ctypes.c_void_p
+                    for argument_type in self.argument_types
+                ]
+            )
 
             self.compilation_result = prototype(
                 (self.name, self.namespace.lib))
