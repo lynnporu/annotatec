@@ -68,6 +68,11 @@ class DeclarationsNamespace(dict):
         else:
             return wrapped
 
+    def is_function(self, name: str):
+        """Checks if passed name is a function.
+        """
+        return hasattr(self.lib, name)
+
     def compile(self, name: str, unwrap: bool = False):
         """
         Arguments:
@@ -95,6 +100,9 @@ class DeclarationsNamespace(dict):
 
         if name in BASE_C_TYPES:
             return BASE_C_TYPES[name]
+
+        if self.is_function(name):
+            return name
 
         if name not in self:
             raise NamespaceError(
@@ -193,10 +201,17 @@ class FunctionDeclaration(Declaration):
 
         if not self.compiled:
 
-            prototype = ctypes.CFUNCTYPE(*list(map(
-                self.namespace.compile_unwrap,
-                [self.return_type] + self.argument_types
-            )))
+            prototype = ctypes.CFUNCTYPE(
+                self.namespace.compile_unwrap(self.return_type),
+                *[
+                    # compile the name
+                    self.namespace.compile_unwrap(argument_type)
+                    if not self.namespace.is_function(argument_type)
+                    # or give (void*) if the name defines a function
+                    else ctypes.c_void_p
+                    for argument_type in self.argument_types
+                ]
+            )
 
             self.compilation_result = prototype(
                 (self.name, self.namespace.lib))
