@@ -226,26 +226,29 @@ class MembersDeclaration:
         return self.members[key]
 
 
-class MembersWrapper:
+class DeclarationWrapper:
 
     def __init__(self, subject, wrapper):
         self.subject = subject
         self.wrapper = wrapper
+
+    def __call__(self, *args, **kwargs):
+        return self.subject.__call__(*args, **kwargs)
+
+    def __mul__(self, amount):
+        return MembersWrapper(
+            subject=(self.subject.__mul__(amount)),
+            wrapper=self.wrapper
+        )
+
+
+class MembersWrapper(DeclarationWrapper):
 
     def __getattr__(self, key):
         try:
             return getattr(self.wrapper, key)
         except KeyError:
             return getattr(self.subject, key)
-
-    def __call__(self, *args, **kwargs):
-        return self.subject(*args, **kwargs)
-
-    def __mul__(self, amount):
-        return MembersWrapper(
-            subject=(self.subject * amount),
-            wrapper=self.wrapper
-        )
 
 
 class StructDeclaration(Declaration, MembersDeclaration):
